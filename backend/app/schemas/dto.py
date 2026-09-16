@@ -35,7 +35,7 @@ class ArticleRead(BaseModel):
     status: ArticleStatus
     analysis: str
     key_takeaways: str
-    insync_connection: str
+    personal_angle: str
     potential_hook: str
     founder_opinion: str
     themes: str
@@ -76,6 +76,12 @@ class UpdatePostRequest(BaseModel):
 
 class SchedulePostRequest(BaseModel):
     scheduled_for: datetime
+
+
+class LinkedInStatus(BaseModel):
+    connected: bool
+    display_name: str | None = None
+    expires_at: datetime | None = None
 
 
 class WebhookArticle(BaseModel):

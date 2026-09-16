@@ -25,6 +25,6 @@ def graph_reasoning(article: Article, nodes: list[KnowledgeNode]) -> str:
     if supporting:
         return (
             f"This article strengthens the case for {primary.title}: {primary.description} "
-            f"It also connects with {supporting}, which helps DASCAIN build a consistent Learning Intelligence narrative."
+            f"It also connects with {supporting}, which can help you build a consistent point of view."
         )
     return f"This article strengthens the case for {primary.title}: {primary.description}"

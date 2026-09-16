@@ -1,15 +1,18 @@
 from datetime import datetime, timedelta
 from html import escape
 from io import BytesIO
+import secrets
+from urllib.parse import urlencode
 
-from fastapi import APIRouter, Depends, Header, HTTPException
-from fastapi.responses import Response
+import httpx
+from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.responses import RedirectResponse, Response
 from sqlalchemy import func
 from sqlalchemy.orm import Session, selectinload
 
 from app.core.config import get_settings
 from app.core.database import get_db
-from app.models.entities import Article, ArticleStatus, GeneratedPost
+from app.models.entities import Article, ArticleStatus, GeneratedPost, LinkedInAccount
 from app.schemas.dto import (
     ArticleRead,
     ArticleUpdate,
@@ -20,12 +23,14 @@ from app.schemas.dto import (
     SchedulePostRequest,
     UpdatePostRequest,
     WebhookArticle,
+    LinkedInStatus,
 )
 from app.services.ai_pipeline import canonicalize_url, enrich_article, generate_posts
 from app.services.knowledge_graph import graph_reasoning, retrieve_context
 from app.services.news_collector import collect_from_rss
 
 router = APIRouter()
+_oauth_states: set[str] = set()
 
 
 @router.get("/health")
@@ -40,7 +45,7 @@ def dashboard(db: Session = Depends(get_db)) -> DashboardStats:
     posts = db.query(GeneratedPost).all()
     themes = ", ".join(article.themes for article in articles)
     trending = []
-    for theme in ["Learning Intelligence", "Skill Intelligence", "AI Tutors", "Workforce Readiness", "Assessment"]:
+    for theme in ["Emerging technology", "Career growth", "Leadership", "Workplace culture", "Customer insight"]:
         if theme.lower() in themes.lower():
             trending.append(theme)
     return DashboardStats(
@@ -71,7 +76,7 @@ def get_article(article_id: int, db: Session = Depends(get_db)) -> Article:
     article = db.query(Article).options(selectinload(Article.posts)).filter(Article.id == article_id).first()
     if not article:
         raise HTTPException(status_code=404, detail="Article not found")
-    article.insync_connection = graph_reasoning(article, retrieve_context(db, article))
+    article.personal_angle = graph_reasoning(article, retrieve_context(db, article))
     db.commit()
     db.refresh(article)
     return article
@@ -130,6 +135,108 @@ def schedule_post(post_id: int, payload: SchedulePostRequest, db: Session = Depe
         raise HTTPException(status_code=404, detail="Post not found")
     post.scheduled_for = payload.scheduled_for
     post.status = "scheduled"
+    db.commit()
+    db.refresh(post)
+    return post
+
+
+@router.get("/linkedin/connect")
+def linkedin_connect() -> RedirectResponse:
+    settings = get_settings()
+    if not settings.linkedin_client_id:
+        raise HTTPException(status_code=503, detail="LinkedIn OAuth is not configured yet")
+    state = secrets.token_urlsafe(32)
+    _oauth_states.add(state)
+    params = {
+        "response_type": "code",
+        "client_id": settings.linkedin_client_id,
+        "redirect_uri": settings.linkedin_redirect_uri,
+        "state": state,
+        "scope": settings.linkedin_scopes.replace(",", " "),
+    }
+    return RedirectResponse("https://www.linkedin.com/oauth/v2/authorization?" + urlencode(params))
+
+
+@router.get("/linkedin/callback")
+async def linkedin_callback(code: str = Query(...), state: str = Query(...), db: Session = Depends(get_db)) -> RedirectResponse:
+    settings = get_settings()
+    if state not in _oauth_states:
+        raise HTTPException(status_code=400, detail="Invalid OAuth state")
+    _oauth_states.remove(state)
+    if not settings.linkedin_client_id or not settings.linkedin_client_secret:
+        raise HTTPException(status_code=503, detail="LinkedIn OAuth is not configured yet")
+    async with httpx.AsyncClient(timeout=20) as client:
+        token_response = await client.post(
+            "https://www.linkedin.com/oauth/v2/accessToken",
+            data={
+                "grant_type": "authorization_code",
+                "code": code,
+                "client_id": settings.linkedin_client_id,
+                "client_secret": settings.linkedin_client_secret,
+                "redirect_uri": settings.linkedin_redirect_uri,
+            },
+        )
+        token_response.raise_for_status()
+        token = token_response.json()
+        profile_response = await client.get(
+            "https://api.linkedin.com/v2/userinfo",
+            headers={"Authorization": f"Bearer {token['access_token']}"},
+        )
+        profile_response.raise_for_status()
+        profile = profile_response.json()
+    account = db.query(LinkedInAccount).filter(LinkedInAccount.person_id == profile["sub"]).first()
+    if not account:
+        account = LinkedInAccount(person_id=profile["sub"])
+        db.add(account)
+    account.display_name = profile.get("name", "")
+    account.access_token = token["access_token"]
+    account.expires_at = datetime.utcnow() + timedelta(seconds=int(token.get("expires_in", 0)))
+    db.commit()
+    return RedirectResponse("http://localhost:3000?linkedin=connected")
+
+
+@router.get("/linkedin/status", response_model=LinkedInStatus)
+def linkedin_status(db: Session = Depends(get_db)) -> LinkedInStatus:
+    account = db.query(LinkedInAccount).order_by(LinkedInAccount.updated_at.desc()).first()
+    return LinkedInStatus(
+        connected=account is not None,
+        display_name=account.display_name if account else None,
+        expires_at=account.expires_at if account else None,
+    )
+
+
+@router.post("/posts/{post_id}/publish", response_model=GeneratedPostRead)
+async def publish_post(post_id: int, db: Session = Depends(get_db)) -> GeneratedPost:
+    post = db.query(GeneratedPost).filter(GeneratedPost.id == post_id).first()
+    account = db.query(LinkedInAccount).order_by(LinkedInAccount.updated_at.desc()).first()
+    if not post:
+        raise HTTPException(status_code=404, detail="Post not found")
+    if not account:
+        raise HTTPException(status_code=400, detail="Connect a LinkedIn account before publishing")
+    if account.expires_at and account.expires_at <= datetime.utcnow():
+        raise HTTPException(status_code=401, detail="LinkedIn authorization expired; reconnect the account")
+    payload = {
+        "author": f"urn:li:person:{account.person_id}",
+        "commentary": post.body,
+        "visibility": "PUBLIC",
+        "distribution": {"feedDistribution": "MAIN_FEED", "targetEntities": []},
+        "lifecycleState": "PUBLISHED",
+        "isReshareDisabledByAuthor": False,
+    }
+    async with httpx.AsyncClient(timeout=20) as client:
+        response = await client.post(
+            "https://api.linkedin.com/rest/posts",
+            json=payload,
+            headers={
+                "Authorization": f"Bearer {account.access_token}",
+                "LinkedIn-Version": "202601",
+                "X-Restli-Protocol-Version": "2.0.0",
+                "Content-Type": "application/json",
+            },
+        )
+    if response.status_code >= 400:
+        raise HTTPException(status_code=502, detail=f"LinkedIn publish failed: {response.text}")
+    post.status = "published"
     db.commit()
     db.refresh(post)
     return post
@@ -225,11 +332,8 @@ def run_collector(db: Session = Depends(get_db)) -> dict[str, int]:
     return {"created": collect_from_rss(db)}
 
 
-@router.post("/webhooks/n8n/article", response_model=ArticleRead)
-def n8n_article(payload: WebhookArticle, x_insync_secret: str | None = Header(default=None), db: Session = Depends(get_db)) -> Article:
-    settings = get_settings()
-    if settings.n8n_webhook_secret and x_insync_secret != settings.n8n_webhook_secret:
-        raise HTTPException(status_code=401, detail="Invalid webhook secret")
+@router.post("/webhooks/article", response_model=ArticleRead)
+def article_webhook(payload: WebhookArticle, db: Session = Depends(get_db)) -> Article:
     canonical = canonicalize_url(payload.url)
     article = db.query(Article).filter(Article.canonical_url == canonical).first()
     if article:

@@ -2,9 +2,9 @@ services:
   postgres:
     image: pgvector/pgvector:pg16
     environment:
-      POSTGRES_DB: insync
-      POSTGRES_USER: insync
-      POSTGRES_PASSWORD: insync
+      POSTGRES_DB: postpilot
+      POSTGRES_USER: postpilot
+      POSTGRES_PASSWORD: postpilot
     ports:
       - "5432:5432"
     volumes:
@@ -13,11 +13,13 @@ services:
   backend:
     build: ./backend
     environment:
-      DATABASE_URL: postgresql+psycopg://insync:insync@postgres:5432/insync
+      DATABASE_URL: postgresql+psycopg://postpilot:postpilot@postgres:5432/postpilot
       CORS_ORIGINS: http://localhost:3000
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
-      N8N_WEBHOOK_SECRET: ${N8N_WEBHOOK_SECRET:-}
-      CLERK_JWKS_URL: ${CLERK_JWKS_URL:-}
+      LINKEDIN_CLIENT_ID: ${LINKEDIN_CLIENT_ID:-}
+      LINKEDIN_CLIENT_SECRET: ${LINKEDIN_CLIENT_SECRET:-}
+      LINKEDIN_REDIRECT_URI: ${LINKEDIN_REDIRECT_URI:-http://localhost:8000/api/linkedin/callback}
+      LINKEDIN_SCOPES: ${LINKEDIN_SCOPES:-openid,profile,w_member_social}
     ports:
       - "8000:8000"
     depends_on:
@@ -27,7 +29,6 @@ services:
     build: ./frontend
     environment:
       NEXT_PUBLIC_API_URL: http://localhost:8000/api
-      NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY:-}
     ports:
       - "3000:3000"
     depends_on:

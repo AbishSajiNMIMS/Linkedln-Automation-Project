@@ -75,11 +75,11 @@ def enrich_article(db: Session, article: Article) -> Article:
         "They need evidence of how people learn, adapt, and apply knowledge."
     )
     article.key_takeaways = "Learning signals matter; skills evidence is becoming more important; AI can help educators act earlier."
-    article.insync_connection = "InSync is positioned around Learning Intelligence: turning learning behavior into actionable insight for students, faculty, and industry partners."
-    article.potential_hook = "What if the next leap in education is not more content, but better evidence of how people learn?"
-    article.founder_opinion = "Gunjan would likely frame this as a call to measure the learning journey, not just the final outcome."
-    article.themes = "Learning Intelligence, Student Thinking Analytics, Skill Intelligence, Workforce Readiness"
-    article.hashtags = "#LearningIntelligence #FutureOfWork #EdTech #AIinEducation"
+    article.personal_angle = "Connect this story to your own experience, audience, or point of view."
+    article.potential_hook = f"What does this shift mean for people working in {article.category.lower()}?"
+    article.founder_opinion = "A useful perspective is to focus on the practical change this creates for people and teams."
+    article.themes = f"{article.category}, Trends, Practical insights"
+    article.hashtags = f"#{article.category.replace(' ', '')} #ProfessionalGrowth #Trends"
     return article
 
 
@@ -120,8 +120,8 @@ def compose_post(article: Article, tone: PostTone, label: str) -> str:
         f"{length_note}{article.title} is not just another {article.category.lower()} headline. "
         f"It highlights a structural question for education leaders: how do we understand learning before it becomes a placement, retention, or readiness problem?\n\n"
         f"{story}\n\n"
-        "This is why Learning Intelligence matters. The opportunity is to move from measuring completion to understanding capability, from static credentials to living evidence, and from reactive intervention to earlier guidance.\n\n"
-        f"For InSync, the root issue is not content delivery. It is helping institutions see how learning is actually forming, where support is needed, and how academic progress connects with workforce readiness.\n\n"
+        "The useful question is how this change affects the people, teams, and customers closest to it.\n\n"
+        "A strong post adds your own experience, an honest opinion, and one practical takeaway instead of repeating the headline.\n\n"
         "What learning signals do you think institutions should pay more attention to?\n\n"
         f"{article.hashtags}"
     )

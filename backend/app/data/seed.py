@@ -7,15 +7,11 @@ from app.services.ai_pipeline import enrich_article
 
 
 KNOWLEDGE_NODES = [
-    ("Learning Intelligence", "core_theme", "Understanding how learners think, struggle, progress, and transfer knowledge across contexts.", 1.0),
-    ("PEARLS Framework", "framework", "A structured lens for performance, engagement, assessment, reflection, learning pathways, and skill readiness.", 0.95),
-    ("Industry-University Collaboration", "ecosystem", "A bridge between academic learning, employer expectations, and real workforce problems.", 0.9),
-    ("AI Tutors", "capability", "Personalized academic support that adapts to each learner's behavior and evidence of understanding.", 0.8),
-    ("Adaptive Learning", "capability", "Learning experiences that change based on demonstrated needs rather than fixed pacing.", 0.85),
-    ("Student Thinking Analytics", "capability", "Signals that reveal misconceptions, confidence, strategy, and readiness beyond final scores.", 0.95),
-    ("Skill Intelligence", "theme", "A data-rich view of what people can actually do, where gaps exist, and how they become employable.", 0.9),
-    ("Workforce Readiness", "theme", "The ability to connect learning outcomes with changing roles, projects, and industry demand.", 0.86),
-    ("Professor Enablement", "theme", "Tools that help faculty see learning patterns and intervene with better timing and context.", 0.82),
+    ("Emerging technology", "theme", "New tools and technologies changing how people work.", 1.0),
+    ("Career growth", "theme", "Skills, habits, and opportunities that help people progress.", 0.9),
+    ("Leadership", "theme", "Practical ideas for leading teams and making better decisions.", 0.9),
+    ("Workplace culture", "theme", "How teams collaborate, communicate, and build trust.", 0.85),
+    ("Customer insight", "theme", "Signals that reveal changing customer needs and expectations.", 0.85),
 ]
 
 

@@ -3,8 +3,8 @@ import type { ReactNode } from "react";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "InSync Thought Leadership Engine",
-  description: "Internal AI workspace for DASCAIN LinkedIn thought leadership."
+  title: "PostPilot | LinkedIn publishing workspace",
+  description: "Create, discover, schedule, and publish professional LinkedIn posts."
 };
 
 export default function RootLayout({ children }: Readonly<{ children: ReactNode }>) {

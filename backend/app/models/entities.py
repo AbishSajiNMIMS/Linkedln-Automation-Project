@@ -47,7 +47,7 @@ class Article(Base):
     status: Mapped[ArticleStatus] = mapped_column(SqlEnum(ArticleStatus), default=ArticleStatus.discovered)
     analysis: Mapped[str] = mapped_column(Text, default="")
     key_takeaways: Mapped[str] = mapped_column(Text, default="")
-    insync_connection: Mapped[str] = mapped_column(Text, default="")
+    personal_angle: Mapped[str] = mapped_column(Text, default="")
     potential_hook: Mapped[str] = mapped_column(Text, default="")
     founder_opinion: Mapped[str] = mapped_column(Text, default="")
     themes: Mapped[str] = mapped_column(Text, default="")
@@ -83,3 +83,15 @@ class GeneratedPost(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow)
 
     article: Mapped[Article] = relationship(back_populates="posts")
+
+
+class LinkedInAccount(Base):
+    __tablename__ = "linkedin_accounts"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    person_id: Mapped[str] = mapped_column(String(255), unique=True, index=True)
+    display_name: Mapped[str] = mapped_column(String(255), default="")
+    access_token: Mapped[str] = mapped_column(Text)
+    expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow)

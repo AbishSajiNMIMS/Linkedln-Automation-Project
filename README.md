@@ -1,31 +1,30 @@
-# InSync Thought Leadership Engine
+# PostPilot
 
-Production-oriented internal workspace for turning high-relevance education, AI, hiring, and future-of-work news into DASCAIN LinkedIn thought leadership.
+PostPilot is a neutral LinkedIn content workspace for individuals and small teams. It discovers professional stories from RSS feeds, helps you turn them into editable post drafts, and lets you schedule or publish from your own LinkedIn account.
 
-## What Is Included
+## Features
 
-- Next.js, TypeScript, TailwindCSS frontend with a Notion/Perplexity-style three-panel AI workspace.
-- FastAPI backend with SQLAlchemy models for articles, knowledge nodes, generated posts, scheduling, and exports.
-- RSS collector, deduplication by canonical URL, AI categorization, relevance scoring, and n8n-compatible ingestion webhook.
-- Knowledge graph reasoning across Learning Intelligence, PEARLS, AI Tutors, Skill Intelligence, Workforce Readiness, and related themes.
-- LinkedIn draft generation for thought leadership, founder perspective, and visionary angles.
-- Docker Compose stack with PostgreSQL plus pgvector image.
+- Discover and score stories by topic and relevance.
+- Generate multiple post angles and edit the copy before publishing.
+- Schedule drafts for a future time.
+- Connect a LinkedIn account with OAuth 2.0; no LinkedIn password is stored.
+- Publish through LinkedIn's official API when the LinkedIn application has the required product permissions.
+- Export drafts as Markdown, Word-compatible HTML, PDF, or plain text.
 
-## Run Locally
+## Run locally
 
-Backend:
-
-```bash
+```powershell
+Copy-Item .env.example .env
 cd backend
 python -m venv .venv
-.venv\Scripts\activate
+.\.venv\Scripts\Activate.ps1
 pip install -r requirements.txt
 uvicorn app.main:app --reload
 ```
 
-Frontend:
+In another terminal:
 
-```bash
+```powershell
 cd frontend
 npm install
 npm run dev
@@ -33,28 +32,22 @@ npm run dev
 
 Open `http://localhost:3000`.
 
+## LinkedIn setup
+
+Create an application in the LinkedIn Developer Portal, enable the Sign In with LinkedIn using OpenID Connect and Share on LinkedIn products, and add this redirect URL:
+
+`http://localhost:8000/api/linkedin/callback`
+
+Copy the client ID and secret into `.env`. For production, use your HTTPS domain as `LINKEDIN_REDIRECT_URI`. LinkedIn must approve the required scopes for your application; the app cannot bypass those permissions.
+
 ## Docker
 
-```bash
+```powershell
 docker compose up --build
 ```
 
-The frontend runs on `http://localhost:3000` and the API on `http://localhost:8000/api`.
+## Production deployment
 
-## API Highlights
+The simplest production layout is a small DigitalOcean droplet or App Platform service running the Docker Compose stack behind HTTPS. Set a persistent PostgreSQL database, `CORS_ORIGINS`, the public frontend API URL, and the LinkedIn OAuth values as platform secrets. Update the LinkedIn redirect URL to the public API callback URL, then run health checks against `/api/health`.
 
-- `GET /api/dashboard`
-- `GET /api/articles`
-- `GET /api/articles/{id}`
-- `POST /api/articles/{id}/generate`
-- `POST /api/posts/{id}/rewrite`
-- `POST /api/posts/{id}/schedule`
-- `GET /api/posts/{id}/export/{linkedin|markdown|notion|word|pdf}`
-- `POST /api/collector/run`
-- `POST /api/webhooks/n8n/article`
-
-## Environment
-
-Copy `.env.example` to `.env` and fill in keys as integrations are connected.
-
-The current AI pipeline has deterministic fallbacks so the app is usable without OpenAI credentials. The service boundary is ready for replacing the local composer with the OpenAI Responses API and embedding writes to pgvector.
+For reliable delayed publishing, run a worker/cron process that finds posts whose `scheduled_for` is in the past and calls the same publish service. The current UI stores schedules and publishes immediately; it intentionally does not pretend to run a production scheduler inside a web request.

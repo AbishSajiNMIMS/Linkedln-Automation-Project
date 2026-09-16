@@ -1,4 +1,4 @@
-import type { Article, DashboardStats, GeneratedPost, PostTone } from "@/lib/types";
+import type { Article, DashboardStats, GeneratedPost, LinkedInStatus, PostTone } from "@/lib/types";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:8000/api";
 
@@ -55,6 +55,14 @@ export function schedulePost(postId: number, scheduledFor: string) {
     method: "POST",
     body: JSON.stringify({ scheduled_for: scheduledFor })
   });
+}
+
+export function getLinkedInStatus() {
+  return request<LinkedInStatus>("/linkedin/status");
+}
+
+export function publishPost(postId: number) {
+  return request<GeneratedPost>(`/posts/${postId}/publish`, { method: "POST" });
 }
 
 export function approveArticle(articleId: number) {

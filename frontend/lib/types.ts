@@ -36,7 +36,7 @@ export type Article = {
   status: ArticleStatus;
   analysis: string;
   key_takeaways: string;
-  insync_connection: string;
+  personal_angle: string;
   potential_hook: string;
   founder_opinion: string;
   themes: string;
@@ -53,4 +53,10 @@ export type DashboardStats = {
   posts_published: number;
   trending_topics: string[];
   ai_confidence: number;
+};
+
+export type LinkedInStatus = {
+  connected: boolean;
+  display_name: string | null;
+  expires_at: string | null;
 };

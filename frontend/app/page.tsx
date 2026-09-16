@@ -24,12 +24,12 @@ import {
   Sun,
   TrendingUp
 } from "lucide-react";
-import { approveArticle, exportPost, generatePosts, getArticle, getArticles, getDashboard, rewritePost, schedulePost, updatePost } from "@/lib/api";
+import { approveArticle, exportPost, generatePosts, getArticle, getArticles, getDashboard, getLinkedInStatus, publishPost, rewritePost, schedulePost, updatePost } from "@/lib/api";
 import type { Article, DashboardStats, GeneratedPost, PostTone } from "@/lib/types";
 import { Button } from "@/components/button";
 import { cn } from "@/lib/utils";
 
-const categories = ["AI", "Education", "Learning Science", "Assessment", "Universities", "Future of Work", "Hiring", "EdTech"];
+const categories = ["AI", "Education", "Leadership", "Career", "Technology", "Business", "Hiring", "Workplace"];
 const rewriteTones: PostTone[] = ["professional", "founder", "visionary", "short", "long", "storytelling"];
 
 export default function Home() {
@@ -44,6 +44,7 @@ export default function Home() {
   const [error, setError] = useState<string | null>(null);
   const [dark, setDark] = useState(false);
   const [filter, setFilter] = useState("AI");
+  const [linkedinConnected, setLinkedinConnected] = useState(false);
 
   useEffect(() => {
     document.documentElement.classList.toggle("dark", dark);
@@ -51,6 +52,7 @@ export default function Home() {
 
   useEffect(() => {
     void refresh();
+    getLinkedInStatus().then((status) => setLinkedinConnected(status.connected)).catch(() => setLinkedinConnected(false));
   }, []);
 
   useEffect(() => {
@@ -188,6 +190,25 @@ export default function Home() {
     } finally {
       setBusy(false);
     }
+
+  }
+
+  async function handlePublish() {
+    if (!activePost) return;
+    setBusy(true);
+    setError(null);
+    setNotice(null);
+    try {
+      const saved = await saveActiveDraft();
+      const updated = await publishPost(saved?.id ?? activePost.id);
+      replacePost(updated);
+      await refresh();
+      setNotice("Published to your LinkedIn profile.");
+    } catch (caught) {
+      setError(readError(caught));
+    } finally {
+      setBusy(false);
+    }
   }
 
   function replacePost(updated: GeneratedPost) {
@@ -204,8 +225,8 @@ export default function Home() {
         <aside className="border-b border-border bg-panel px-4 py-4 lg:border-b-0 lg:border-r">
           <div className="mb-6 flex items-center justify-between">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-wide text-accent">DASCAIN</p>
-              <h1 className="text-lg font-semibold">InSync Engine</h1>
+              <p className="text-xs font-semibold uppercase tracking-wide text-accent">POSTPILOT</p>
+              <h1 className="text-lg font-semibold">LinkedIn workspace</h1>
             </div>
             <Button variant="ghost" className="h-9 w-9 px-0" onClick={() => setDark((value) => !value)} title="Toggle theme">
               {dark ? <Sun size={17} /> : <Moon size={17} />}
@@ -245,8 +266,8 @@ export default function Home() {
           <div className="border-b border-border bg-panel/75 px-5 py-4 backdrop-blur">
             <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
               <div>
-                <p className="text-sm text-foreground/60">Internal AI workspace</p>
-                <h2 className="text-2xl font-semibold">Learning Intelligence narrative desk</h2>
+                <p className="text-sm text-foreground/60">Your content workspace</p>
+                <h2 className="text-2xl font-semibold">Discover ideas, write clearly, publish consistently</h2>
               </div>
               <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
                 <Metric label="Today's Articles" value={stats?.todays_articles ?? 0} icon={<Newspaper size={16} />} />
@@ -319,8 +340,8 @@ export default function Home() {
                   <div className="rounded-lg border border-border bg-panel p-4">
                     <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                       <div>
-                        <h3 className="font-semibold">LinkedIn generation</h3>
-                        <p className="text-sm text-foreground/60">Three draft angles, each tied to the knowledge graph.</p>
+                        <h3 className="font-semibold">Post studio</h3>
+                        <p className="text-sm text-foreground/60">Generate several angles, edit your voice, then schedule or publish.</p>
                       </div>
                       <Button onClick={handleGenerate} disabled={busy}>
                         {busy ? <Loader2 className="animate-spin" size={16} /> : <Sparkles size={16} />}
@@ -376,7 +397,7 @@ export default function Home() {
         </section>
 
         <aside className="border-t border-border bg-panel px-4 py-5 lg:border-l lg:border-t-0">
-          <h3 className="mb-4 font-semibold">Publishing intelligence</h3>
+          <h3 className="mb-4 font-semibold">Publishing controls</h3>
           <Score label="Relevance" value={selected?.relevance_score ?? 0} />
           <Score label="Virality" value={selected?.virality_score ?? 0} />
           <Score label="AI Confidence" value={selected?.ai_confidence ?? 0} />
@@ -404,6 +425,10 @@ export default function Home() {
           </div>
 
           <div className="mt-6 space-y-2">
+            <Button className="w-full" variant={linkedinConnected ? "secondary" : "primary"} onClick={() => window.location.href = `${process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:8000/api"}/linkedin/connect`}>
+              <Send size={16} />
+              {linkedinConnected ? "LinkedIn connected" : "Connect LinkedIn"}
+            </Button>
             <Button className="w-full" onClick={handleSchedule} disabled={!activePost || busy}>
               <CalendarClock size={16} />
               Schedule Tomorrow
@@ -411,6 +436,10 @@ export default function Home() {
             <Button variant="secondary" className="w-full" onClick={handleLinkedInExport} disabled={!activePost || busy}>
               <Send size={16} />
               Export to LinkedIn
+            </Button>
+            <Button variant="secondary" className="w-full" onClick={handlePublish} disabled={!activePost || busy || !linkedinConnected}>
+              <Send size={16} />
+              Publish now
             </Button>
             <div className="grid grid-cols-2 gap-2">
               <Button variant="secondary" className="w-full px-2" onClick={() => handleDownload("markdown")} disabled={!activePost || busy}>
@@ -489,7 +518,7 @@ function InsightGrid({ selected }: { selected: Article }) {
   const items = [
     { title: "AI Analysis", body: selected.analysis, icon: <BrainCircuit size={17} /> },
     { title: "Key Takeaways", body: selected.key_takeaways, icon: <FileText size={17} /> },
-    { title: "Connection to InSync", body: selected.insync_connection, icon: <Sparkles size={17} /> },
+    { title: "Your angle", body: selected.personal_angle, icon: <Sparkles size={17} /> },
     { title: "Founder Opinion", body: selected.founder_opinion, icon: <Lightbulb size={17} /> }
   ];
   return (
